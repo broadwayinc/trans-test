@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Translator Chatbot</title>
+    <script src="https://cdn.skapi.com/sdk/v0.7/skapi.min.js"></script>
+    <style>
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        h1 {
+            color: #333;
+        }
+        #chatbox {
+            width: 100%;
+            max-width: 600px;
+            background: #fff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        #messages {
+            flex: 1;
+            padding: 10px;
+            overflow-y: auto;
+        }
+        .message {
+            margin-bottom: 10px;
+            padding: 8px 12px;
+            border-radius: 6px;
+            line-height: 1.4em;
+        }
+        .user {
+            background-color: #e0f7fa;
+            align-self: flex-end;
+        }
+        .bot {
+            background-color: #e8eaf6;
+            align-self: flex-start;
+        }
+        #input-area {
+            display: flex;
+            padding: 10px;
+            border-top: 1px solid #ddd;
+        }
+        #input-area input,
+        #language-select,
+        #send {
+            font-size: 1em;
+        }
+        #input-area input {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin-right: 10px;
+        }
+        #language-select {
+            margin-right: 10px;
+            padding: 8px;
+        }
+        #send {
+            padding: 8px 16px;
+            background-color: #3f51b5;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        #send:disabled {
+            background-color: #9fa8da;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <h1>Translator Chatbot</h1>
+    <div id="chatbox">
+        <div id="messages"></div>
+        <div id="input-area">
+            <select id="language-select">
+                <option value="Spanish">Spanish</option>
+                <option value="French">French</option>
+                <option value="German">German</option>
+                <option value="Portuguese">Portuguese</option>
+                <option value="Japanese">Japanese</option>
+            </select>
+            <input type="text" id="user-input" placeholder="Type your message" />
+            <button id="send">Send</button>
+        </div>
+    </div>
+
+    <script>
+        const skapi = new Skapi({
+            service_id: 'ap22p3Z9NKH9CBNseFEc',
+            owner_id: 'f8e16604-69e4-451c-9d90-4410f801c006'
+        });
+        // Check login state but no login required for translator
+        skapi.getProfile().catch(() => {});
+
+        const sendBtn = document.getElementById('send');
+        const userInput = document.getElementById('user-input');
+        const messagesDiv = document.getElementById('messages');
+        const langSelect = document.getElementById('language-select');
+
+        function addMessage(text, cls) {
+            const div = document.createElement('div');
+            div.className = `message ${cls}`;
+            div.textContent = text;
+            messagesDiv.appendChild(div);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        async function translateMessage(message) {
+            const language = langSelect.value;
+            try {
+                const res = await skapi.clientSecretRequest({
+                    clientSecretName: 'translator',
+                    method: 'POST',
+                    url: 'https://api.openai.com/v1/chat/completions',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: 'gpt-3.5-turbo',
+                        messages: [
+                            {
+                                role: 'system',
+                                content: `Translate the user's message to ${language}`
+                            },
+                            {
+                                role: 'user',
+                                content: message
+                            }
+                        ]
+                    }),
+                    responseType: 'json'
+                });
+                return res.choices[0].message.content.trim();
+            } catch (e) {
+                console.error(e);
+                return 'Error translating message.';
+            }
+        }
+
+        sendBtn.addEventListener('click', async () => {
+            const text = userInput.value.trim();
+            if (!text) return;
+            addMessage(text, 'user');
+            userInput.value = '';
+            sendBtn.disabled = true;
+            const translated = await translateMessage(text);
+            addMessage(translated, 'bot');
+            sendBtn.disabled = false;
+        });
+    </script>
+</body>
+</html>
